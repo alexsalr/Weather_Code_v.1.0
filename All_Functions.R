@@ -303,7 +303,7 @@ daily_control <- function (daily_restric, file, sepa, date_format )
   #convert_units <- function(weatherdata, date_format="%Y%m%d", typefile, sepa)
   read_file <- convert_units(weatherdata=file , date_format=date_format, sepa= sepa )
   
-
+  
   
   
   
@@ -327,7 +327,7 @@ daily_control <- function (daily_restric, file, sepa, date_format )
     #Color 
     read_file$Colour <- "Standard"
     read_file$Colour[read_file$Value %in% values$Value]="Outliers"
-
+    
     
     ggplot(read_file, aes(x=Date, y= Value, color= Colour)) + geom_point() + ggtitle(paste0("Grafica de Outliers","\n", splitname[1], "\n", "Variable ", variable)) + theme(plot.title = element_text(hjust = 0.5))
     ggsave(paste0(here::here(), "/Outliers/", splitname[1], "_", variable, ".pdf"))
@@ -338,7 +338,7 @@ daily_control <- function (daily_restric, file, sepa, date_format )
     values_out <- which(read_file$Value < daily_res$RH[2] || read_file$Value > daily_res$RH[1])
     new_file <- paste0(splitname[1], "_", variable, "_", "NE", ".txt")
     
-
+    
     
     if(length(values_out)!=0)
     {
@@ -362,7 +362,7 @@ daily_control <- function (daily_restric, file, sepa, date_format )
     #Color 
     read_file$Colour <- "Standard"
     read_file$Colour[read_file$Value %in% values$Value]="Outliers"
-
+    
     
     ggplot(read_file, aes(x=Date, y= Value, color= Colour)) + geom_point() + ggtitle(paste0("Grafica de Outliers","\n", splitname[1], "\n", "Variable ", variable)) + theme(plot.title = element_text(hjust = 0.5))
     ggsave(paste0(here::here(), "/Outliers/", splitname[1], "_", variable, ".pdf"))
@@ -397,14 +397,14 @@ daily_control <- function (daily_restric, file, sepa, date_format )
     #Color 
     read_file$Colour <- "Standard"
     read_file$Colour[read_file$Value %in% values$Value]="Outliers"
-
+    
     
     ggplot(read_file, aes(x=Date, y= Value, color= Colour)) + geom_point() + ggtitle(paste0("Grafica de Outliers","\n", splitname[1], "\n", "Variable ", variable)) + theme(plot.title = element_text(hjust = 0.5))
     ggsave(paste0(here::here(), "/Outliers/", splitname[1], "_", variable, ".pdf"))
-  
+    
     #Put NA
     read_file$Value[read_file$Value %in% values$Value] <- NA  
-  
+    
     
     values_out <- which(read_file$Value < daily_res$TM[2] || read_file$Value > daily_res$TM[1])
     new_file <- paste0(splitname[1], "_", variable, "_", "CD", ".txt")
@@ -499,7 +499,7 @@ check_amount_NA <- function(file, porcentage)
   number_NA <- sum(is.na(table$Value))
   #number_length <- length(table$Value)
   
-  if(number_NA/number_length > porcentage)
+  if(number_NA/number_length < porcentage)
   {
     result <- data.frame(split_name(file)[1], split_name(file)[2])
     
@@ -917,7 +917,7 @@ merge_files <- function (name, listfiles, type)
   
   if(type == "RandomForest")
   {
-    write.table(tablaPerday, file = paste0(here::here("RandomForest"), "/", namec), row.names = FALSE, quote = FALSE, col.names = TRUE)
+    write.table(tablaPerday, file = paste0(here::here("Randomforest"),"/", namec), row.names = FALSE, quote = FALSE, col.names = TRUE)
   }
   if(type == "Final_Data")
   {
@@ -1053,8 +1053,7 @@ put_rmawgenformat <- function(files, vari)
   #Merge Columns
   merge_all <- do.call("cbind", files_reading)
   position_dates <- which(colnames(merge_all)== 'Date')
-  merge_all <- merge_all[-position_dates[-1]]
-  
+  #merge_all <- merge_all[-position_dates[-1]]
   
   merge_all$year <- sapply(strsplit(as.character(merge_all$Date),'-'), "[", 1)
   merge_all$month <- sapply(strsplit(as.character(merge_all$Date),'-'), "[", 2)
@@ -2152,8 +2151,16 @@ applying_rmwagen_2 <- function (TEMPERATURE_MAX, TEMPERATURE_MIN, PRECIPITATION,
     {
       warning("There is a problem with distribution of Precipitation. This is very biased to zero")
       PRECIPITATION[station] <- PRECIPITATION[station] + 4
+      
+      if(length(station)==1) {
+        PRECIPITATION['fake_1']=PRECIPITATION[station]
+        PRECIPITATION['fake_2']=PRECIPITATION[station]
+        pstation = c(station, c('fake_1','fake_2'))
+      }
+      else {pstation = station}
+      
       generation_prec <- tryCatch(ComprehensivePrecipitationGenerator(
-        station=station,
+        station=pstation,
         prec_all=PRECIPITATION,
         year_min=year_min,
         year_max=year_max,
@@ -2177,8 +2184,15 @@ applying_rmwagen_2 <- function (TEMPERATURE_MAX, TEMPERATURE_MIN, PRECIPITATION,
         warning=function(w) 
           w
       )
-      real_data <- generation_prec$prec_mes - 4
-      fill_data <- generation_prec$prec_gen - 4
+      if(length(station)==1) {
+        real_data <- generation_prec$prec_mes[,station, drop=FALSE] - 4
+        fill_data <- generation_prec$prec_gen[,station, drop=FALSE] - 4
+      }
+      else {
+        real_data <- generation_prec$prec_mes - 4
+        fill_data <- generation_prec$prec_gen - 4
+      }
+      
       
     }
     
@@ -2271,37 +2285,209 @@ controlHourlyDaily <- function(type)
     
   }
   
-  
-  
-  
 }  
 
 
 
+create_folders <- function (mainDir)
+{ 
+  dir.create(file.path(mainDir, "Original_Data"), showWarnings = FALSE)
+  dir.create(file.path(mainDir, "Outliers"), showWarnings = FALSE)
+  dir.create(file.path(mainDir, "SpatialInformation_InputVariables"), showWarnings = FALSE)
+  dir.create(file.path(mainDir, "AfterHourlyControl_Data"), showWarnings = FALSE)
+  dir.create(file.path(mainDir, "AfterDailyControl_Data"), showWarnings = FALSE)
+  dir.create(file.path(mainDir, "RandomForest"), showWarnings = FALSE)
+  dir.create(file.path(mainDir, "Rmawgen"), showWarnings = FALSE)
+  dir.create(file.path(mainDir, "Graphics"), showWarnings = FALSE)
+  dir.create(file.path(mainDir, "Results"), showWarnings = FALSE)
+  dir.create(file.path(mainDir, "Final_Data"), showWarnings = FALSE)
+  mainDir <- paste0(mainDir,"/", "Rmawgen" )
+  dir.create(file.path(mainDir, "Files_By_Station" ), showWarnings = FALSE)
+  mainDir <- getwd()
+  mainDir <-  paste0(mainDir,"/", "Graphics" )
+  dir.create(file.path(mainDir, "Clustering_Stations"), showWarnings = FALSE)
+}
+
+
+#RANDOM FOREST
+
+#
+library(randomForest)
+
+#subDir <- "Final_Files_HR"
+#subDir <- "With_SR"
+#subDir <- "Total_Final"
+
+
+#dir.create(file.path(getwd(), subDir), showWarnings = FALSE)
+#joinfiles join all files.
+
+join_file <- function (name)
+{
+  
+  name <- as.character(name)
+  files <-  list.files(pattern= name)
+  
+  if(length(files) != 2)
+  {
+    stop("There are more file with same name",name)
+  }
+  else
+  {
+    variable <-  split_name(files[2])[2]
+    
+    if(variable == "PTXTM")
+    {
+      file_first <- read.table(files[2], header = TRUE)
+      j <- 1
+    }
+    else
+    {
+      file_first <- read.table(files[1], header = TRUE)
+      j <-2
+    }
+    
+    file_second <- read.table(files[j], header = TRUE)
+    file_second <- file_second[,-which(colnames(file_second)%in% c("TM", "TX", "P"))]
+  }
+  
+  
+  result <- merge(file_first, file_second, by= "Date", all= TRUE)
+  
+  namec <- paste0(name,".txt" )
+  
+  
+  
+}
 
 
 
 
+#All files join all files. 
+
+#lapply (names_estaciones, join_file)
+
+#radom_forest fill missing values for missing values
+random_forest_SR <- function(station)
+{
+  #name
+  name <- as.character(station)
+  
+  #Read table
+  #station <- read.table(paste0("./Randomforest/",station), header = TRUE)
+  station <- read.table(paste0(here::here("Randomforest"),"/",name), header = TRUE)
+  
+  #Real Data
+  
+  real_data <- station 
+  
+  #Diference between temperatura
+  station$DifferenceTemperature <- station$TX - station$TM
+  
+  #Location NA's
+  NAs= which((is.na(station$SR=="NA"))==TRUE)
+  DataNas = station[NAs,]
+  
+  #Delete Columns "Date", "P", "TM"
+  station_rf <- na.omit(station[,-which(colnames(station)%in% c("Date", "TM", "RH"))])
+  #DataNas <- na.omit(DataNas[,-which(colnames(station)%in% c("Date", "TM", "RH", "SR"))])
+  
+  
+  #Random Forest
+  randomforest <- randomForest(SR ~ ., data=station_rf)
+  valPredic <- predict(randomforest, DataNas)
+  
+  #Put missing values into matrix
+  DataNas$SR <- as.numeric(valPredic) 
+  station[NAs,] <- DataNas
+  
+  #Predict
+  predic <- station[,-which(colnames(station)=='DifferenceTemperature')]
+  
+  #Delete .txt
+  name <- gsub('.txt', "", name)
+  station_names <- c(rep(name, nrow(real_data)))
+  result <- data.frame(real_data$Date, real_data$SR, predic$SR, station_names)
+  colnames(result) <- c("Date", "Real_Data", "Estimated_Data", "Station_Names")
+  
+  name <- paste0(name, ".txt")
+  #write.table(predic, file = paste(getwd(),"Final_Files_SR", name, sep =  "/"), row.names = FALSE, quote = FALSE, col.names = TRUE)
+  
+  
+  return(result)
+  
+}
+
+#lapply(list.files(), random_forest_SR)
+#setwd("C:/Users/JCRIVERA/Documents/Codigo_Nuevo_Clima/Datos/Datos_Prueba/Hourly_Data/Daily_Data/Random_Forest/Final_Files/With_SR")
+
+#radom_forest fill missing values for missing values
+random_forest_RH <- function(station)
+{
+  #name
+  name <- as.character(station)
+  
+  
+  #Read table
+  #station <- read.table(station, header = TRUE)
+  station <- read.table(paste0(here::here("Randomforest"),"/",name), header = TRUE)
+  
+  #Real Data
+  real_data <- station 
+  
+  #Location NA's
+  NAs= which((is.na(station$RH=="NA"))==TRUE)
+  DataNas = station[NAs,]
+  
+  #Delete Columns "Date", "P", "TM"  
+  station_rf <- na.omit(station[,-which(colnames(station)%in% c("Date"))])
+  #DataNas <- na.omit(DataNas[,-which(colnames(station)%in% c("Date", "TM", "RH", "SR"))])
+  
+  
+  #Random Forest
+  randomforest <- randomForest(RH ~ TX+TM+TX*TM, data=station_rf)
+  valPredic <- predict(randomforest, DataNas)
+  
+  #Put missing values into matrix
+  DataNas$RH <- as.numeric(valPredic) 
+  station[NAs,] <- DataNas
+  
+  predic <- station
+  
+  name <- paste0(name, ".txt")
+  #write.table(predic, file = paste(getwd(),"Final_Files_HR", name, sep =  "/"), row.names = FALSE, quote = FALSE, col.names = TRUE)
+  
+  
+  #Delete .txt
+  name <- gsub('.txt', "", name)
+  station_names <- c(rep(name, nrow(real_data)))
+  result <- data.frame(real_data$Date, real_data$RH, predic$RH, station_names)
+  colnames(result) <- c("Date", "Real_Data", "Estimated_Data", "Station_Names")
+  
+  
+  
+  return(result)
+  
+}
+
+#lapply(list.files(pattern ="\\.txt$"), random_forest_RH)
 
 
+#graph_all_SR_HR graphs all stations.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+graph_all_SR_RH <- function (listFiles, variable)
+{
+  if(variable == "Radiacion_Solar")
+  {
+    Data_Complete <- lapply(listFiles, random_forest_SR)
+    
+  }
+  
+  if(variable == "Humedad_Relativa")
+  {
+    Data_Complete <- lapply(listFiles, random_forest_RH)
+  }
+  
+  lapply(Data_Complete, graph_station, variable = variable)
+  
+}  
